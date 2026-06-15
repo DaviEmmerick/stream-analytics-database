@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: streamer_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: streamer
+      POSTGRES_PASSWORD: streamer123
+      POSTGRES_DB: streamerdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./sql/02_indexes.sql:/docker-entrypoint-initdb.d/02_indexes.sql
+      - ./sql/03_views.sql:/docker-entrypoint-initdb.d/03_views.sql
+      - ./sql/04_triggers.sql:/docker-entrypoint-initdb.d/04_triggers.sql
+      - ./sql/05_functions.sql:/docker-entrypoint-initdb.d/05_functions.sql
+      - ./sql/06_seed.sql:/docker-entrypoint-initdb.d/06_seed.sql
+
+volumes:
+  pgdata:
