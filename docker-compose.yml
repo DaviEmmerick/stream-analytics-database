@@ -3,12 +3,14 @@ services:
     image: postgres:16
     container_name: streamer_db
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: streamer
-      POSTGRES_PASSWORD: streamer123
-      POSTGRES_DB: streamerdb
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
@@ -17,6 +19,22 @@ services:
       - ./sql/04_triggers.sql:/docker-entrypoint-initdb.d/04_triggers.sql
       - ./sql/05_functions.sql:/docker-entrypoint-initdb.d/05_functions.sql
       - ./sql/06_seed.sql:/docker-entrypoint-initdb.d/06_seed.sql
+
+  seeder:
+    image: python:3.11-slim
+    container_name: streamer_seeder
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+    volumes:
+      - ./seed:/app/seed
+    working_dir: /app/seed
+    command: >
+      bash -c "pip install psycopg2-binary faker python-dotenv &&
+               python create-table.py"
 
 volumes:
   pgdata:
