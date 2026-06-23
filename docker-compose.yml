@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${DB_PORT}:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
@@ -19,12 +19,19 @@ services:
       - ./sql/04_triggers.sql:/docker-entrypoint-initdb.d/04_triggers.sql
       - ./sql/05_functions.sql:/docker-entrypoint-initdb.d/05_functions.sql
       - ./sql/06_seed.sql:/docker-entrypoint-initdb.d/06_seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   seeder:
     image: python:3.11-slim
     container_name: streamer_seeder
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy   # <-- só sobe quando o healthcheck passar
     env_file:
       - .env
     environment:
