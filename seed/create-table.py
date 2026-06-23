@@ -1,6 +1,7 @@
 import os
 import random
 from datetime import datetime, timedelta
+import sys
 import psycopg2
 from psycopg2.extras import execute_values
 from faker import Faker
@@ -14,6 +15,14 @@ load_dotenv(dotenv_path=env_path)
 fake = Faker(['pt_BR', 'en_US'])
 Faker.seed(42)
 random.seed(42)
+
+def banco_ja_populado(cur):
+    try:
+        cur.execute("SELECT COUNT(*) FROM Moeda;")
+        quantidade = cur.fetchone()[0]
+        return quantidade > 0
+    except Exception as e:
+        cur.co
 
 def conectar_banco():
     print("🔌 Conectando ao banco de dados...")
