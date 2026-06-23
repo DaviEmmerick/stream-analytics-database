@@ -13,7 +13,7 @@ CREATE INDEX idx_doacao_valor ON Doacao(valor DESC);
 -- Contudo, sem este índice, carregar o chat de um vídeo por ordem cronológica exigiria um Full Table Scan.
 CREATE INDEX idx_comentario_data ON Comentario(data_hora);
 
--- 4. ÍNDICE POR PAÍS DE RESIDÊNCIA DO USUÁRIO (HASH ou B-TREE)
+-- 4. ÍNDICE POR PAÍS DE RESIDÊNCIA DO USUÁRIO (HASH)
 -- Trade-off: Baixo impacto em updates (usuários raramente mudam de país).
 -- Excelente benefício de leitura para cruzar métricas demográficas de público.
 CREATE INDEX idx_usuario_pais ON Usuario(ddi_pais_reside);
