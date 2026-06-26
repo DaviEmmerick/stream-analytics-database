@@ -13,7 +13,6 @@ fake = Faker(['pt_BR', 'en_US'])
 Faker.seed(42)
 random.seed(42)
 
-
 # ──────────────────────────────────────────────
 # CONEXÃO
 # ──────────────────────────────────────────────
@@ -39,7 +38,6 @@ def conectar_banco():
 # GUARD — evita duplicação ao rodar container novamente
 # ──────────────────────────────────────────────
 def banco_ja_populado(cur) -> bool:
-    # CORRIGIDO: função estava duplicada e com linha incompleta (cur.co)
     try:
         cur.execute("SELECT COUNT(*) FROM Moeda;")
         return cur.fetchone()[0] > 0
@@ -48,7 +46,7 @@ def banco_ja_populado(cur) -> bool:
 
 
 # ──────────────────────────────────────────────
-# SEED
+# SEED DE ALTA PERFORMANCE (Adaptado ao Novo Schema)
 # ──────────────────────────────────────────────
 def popular_banco(cur):
     print("\n🚀 INICIANDO CARGA — meta: ~1000 tuplas por tabela")
@@ -57,13 +55,10 @@ def popular_banco(cur):
     # 1. MOEDAS (1000)
     dados_moeda = []
     moedas_geradas = set()
-    tentativas = 0
     id_moeda = 1  
     
-    while len(dados_moeda) < 1000 and tentativas < 5000:
-        tentativas += 1
+    while len(dados_moeda) < 1000:
         codigo = fake.currency_code()
-        
         if codigo in moedas_geradas:
             codigo = f"{codigo[:2]}{random.randint(10, 99)}"
             
@@ -73,13 +68,10 @@ def popular_banco(cur):
             dados_moeda.append((id_moeda, codigo, taxa))
             id_moeda += 1
 
-    execute_values(
-        cur,
-    "INSERT INTO Moeda (id, nome_moeda, fat_conversao) VALUES %s ON CONFLICT DO NOTHING",
-    dados_moeda,
-    )
-    lista_moedas = list(moedas_geradas)
+    execute_values(cur, "INSERT INTO Moeda (id, nome_moeda, fat_conversao) VALUES %s ON CONFLICT DO NOTHING", dados_moeda)
+    moedas_ids = [m[0] for m in dados_moeda]
     print(f"✅ Moedas: {len(dados_moeda)}")
+
 
     # 2. PAÍSES (1000)
     dados_pais = []
@@ -89,16 +81,13 @@ def popular_banco(cur):
         if ddi not in ddis_gerados:
             ddis_gerados.add(ddi)
             nome = fake.country()[:50] + f"_{ddi}"
-            moeda = random.choice(lista_moedas)
-            dados_pais.append((ddi, nome, moeda))
+            id_m = random.choice(moedas_ids) # Relacionamento NUMÉRICO
+            dados_pais.append((ddi, nome, id_m))
 
-    execute_values(
-        cur,
-        "INSERT INTO Pais (ddi, nome, nome_moeda) VALUES %s ON CONFLICT DO NOTHING",
-        dados_pais,
-    )
+    execute_values(cur, "INSERT INTO Pais (ddi, nome, id_moeda) VALUES %s ON CONFLICT DO NOTHING", dados_pais)
     lista_ddis = list(ddis_gerados)
     print(f"✅ Países: {len(dados_pais)}")
+
 
     # 3. EMPRESAS (1000)
     dados_empresa = []
@@ -109,13 +98,10 @@ def popular_banco(cur):
         ddi = random.choice(lista_ddis)
         dados_empresa.append((i, nome, fantasia, id_nac, ddi))
 
-    execute_values(
-        cur,
-        "INSERT INTO Empresa (numero, nome, nome_fantasia, id_nacional, ddi_pais_sede) VALUES %s ON CONFLICT DO NOTHING",
-        dados_empresa,
-    )
-    lista_empresas = [e[0] for e in dados_empresa]
+    execute_values(cur, "INSERT INTO Empresa (id, nome, nome_fantasia, id_nacional, ddi_pais_sede) VALUES %s ON CONFLICT DO NOTHING", dados_empresa)
+    empresa_ids = [e[0] for e in dados_empresa]
     print(f"✅ Empresas: {len(dados_empresa)}")
+
 
     # 4. PLATAFORMAS (1000)
     dados_plataforma = []
@@ -123,22 +109,17 @@ def popular_banco(cur):
         nome = f"{fake.word().capitalize()} Stream {i}"[:50]
         qtd_users = random.randint(1000, 10_000_000)
         data_fund = fake.date_between(start_date="-15y", end_date="-1y")
-        emp_funda = random.choice(lista_empresas)
-        emp_resp = random.choice(lista_empresas)
+        emp_funda = random.choice(empresa_ids)
+        emp_resp = random.choice(empresa_ids)
         dados_plataforma.append((i, nome, qtd_users, data_fund, emp_funda, emp_resp))
 
-    execute_values(
-        cur,
-        "INSERT INTO Plataforma (numero, nome, qtd_usuarios, data_fundacao, empresa_funda_nro, empresa_resp_nro) VALUES %s ON CONFLICT DO NOTHING",
-        dados_plataforma,
-    )
-    lista_plataformas = [p[0] for p in dados_plataforma]
+    execute_values(cur, "INSERT INTO Plataforma (id, nome, qtd_usuarios, data_fundacao, id_empresa_funda, id_empresa_resp) VALUES %s ON CONFLICT DO NOTHING", dados_plataforma)
+    plataforma_ids = [p[0] for p in dados_plataforma]
     print(f"✅ Plataformas: {len(dados_plataforma)}")
 
+
     # 5. USUÁRIOS (1000)
-    # CORRIGIDO: adicionado id (PK) na inserção — schema agora exige id INT PRIMARY KEY
     dados_usuario = []
-    nicks_gerados = []
     for i in range(1, 1001):
         nick = f"{fake.user_name().lower()}_{i}"[:50]
         email = f"user{i}@{fake.free_email_domain()}"[:100]
@@ -147,254 +128,179 @@ def popular_banco(cur):
         end_postal = fake.address().replace("\n", ", ")[:200]
         ddi = random.choice(lista_ddis)
         dados_usuario.append((i, nick, email, data_nasc, telefone, end_postal, ddi))
-        nicks_gerados.append(nick)
 
-    execute_values(
-        cur,
-        "INSERT INTO Usuario (id, nick, email, data_nasc, telefone, end_postal, ddi_pais_reside) VALUES %s ON CONFLICT DO NOTHING",
-        dados_usuario,
-    )
+    execute_values(cur, "INSERT INTO Usuario (id, nick, email, data_nasc, telefone, end_postal, ddi_pais_reside) VALUES %s ON CONFLICT DO NOTHING", dados_usuario)
+    usuario_ids = [u[0] for u in dados_usuario]
     print(f"✅ Usuários: {len(dados_usuario)}")
 
-    # 6. STREAMERS (400)
-    # CORRIGIDO: adicionado id (PK) na inserção
-    streamers = nicks_gerados[:400]
-    membros = nicks_gerados[400:]
+
+    # 6 e 7. STREAMERS E MEMBROS (Herança PK=FK)
+    streamer_ids = usuario_ids[:400]
+    membro_ids = usuario_ids[400:]
 
     dados_streamer = []
     passaportes = set()
-    for i, nick in enumerate(streamers, start=1):
+    for id_usr in streamer_ids:
         passport = fake.passport_number()[:20]
         while passport in passaportes:
             passport = fake.passport_number()[:20] + str(random.randint(0, 9))
         passaportes.add(passport)
         ddi_nac = random.choice(lista_ddis)
-        dados_streamer.append((i, nick, passport, ddi_nac))
+        dados_streamer.append((id_usr, passport, ddi_nac))
 
-    execute_values(
-        cur,
-        "INSERT INTO Streamer (id, nick_streamer, nro_passaporte, ddi_pais_nacionalidade) VALUES %s ON CONFLICT DO NOTHING",
-        dados_streamer,
-    )
+    execute_values(cur, "INSERT INTO Streamer (id_usuario, nro_passaporte, ddi_pais_nacionalidade) VALUES %s ON CONFLICT DO NOTHING", dados_streamer)
     print(f"✅ Streamers: {len(dados_streamer)}")
 
-    # 7. MEMBROS (600)
-    # CORRIGIDO: tabela Membro agora existe no schema com id + nick_membro
-    dados_membro = []
-    for i, nick in enumerate(membros, start=1):
-        dados_membro.append((i, nick))
-
-    execute_values(
-        cur,
-        "INSERT INTO Membro (id, nick_membro) VALUES %s ON CONFLICT DO NOTHING",
-        dados_membro,
-    )
+    dados_membro = [(id_usr,) for id_usr in membro_ids]
+    execute_values(cur, "INSERT INTO Membro (id_usuario) VALUES %s ON CONFLICT DO NOTHING", dados_membro)
     print(f"✅ Membros: {len(dados_membro)}")
+
 
     # 8. TEM_CONTA (1000)
     dados_tem_conta = []
     pares_conta = set()
-    tentativas = 0
-    id_tem_conta = 1
-    while len(dados_tem_conta) < 1000 and tentativas < 10000:
-        tentativas += 1
-        nick = random.choice(nicks_gerados)
-        plat = random.choice(lista_plataformas)
-        par = (nick, plat)
-        if par not in pares_conta:
-            pares_conta.add(par)
+    while len(dados_tem_conta) < 1000:
+        id_usr = random.choice(usuario_ids)
+        id_plat = random.choice(plataforma_ids)
+        if (id_usr, id_plat) not in pares_conta:
+            pares_conta.add((id_usr, id_plat))
             nro_user = f"usr_{fake.lexify('??????????')}"[:50]
-            dados_tem_conta.append((id_tem_conta, nick, plat, nro_user))
-            id_tem_conta += 1
+            dados_tem_conta.append((id_usr, id_plat, nro_user))
 
-    execute_values(
-        cur,
-        "INSERT INTO TemConta (id, nick_usuario, nro_plataforma, nro_usuario) VALUES %s ON CONFLICT DO NOTHING",
-        dados_tem_conta,
-    )
+    execute_values(cur, "INSERT INTO TemConta (id_usuario, id_plataforma, nro_usuario) VALUES %s ON CONFLICT DO NOTHING", dados_tem_conta)
     print(f"✅ TemConta: {len(dados_tem_conta)}")
+
 
     # 9. CANAIS (1000)
     dados_canal = []
-    canais_criados = []
-    pares_canal = set()
-    tentativas = 0
-    id_canal = 1
-    while len(dados_canal) < 1000 and tentativas < 10000:
-        tentativas += 1
-        streamer = random.choice(streamers)
-        plat = random.choice(lista_plataformas)
-        idx = len(dados_canal)
-        nome_canal = f"Canal_{streamer[:15]}_{idx}"[:50]
-        par = (nome_canal, plat, streamer)
-        if par not in pares_canal:
-            pares_canal.add(par)
-            tipo = random.choice(["privado", "público", "misto"])
-            data_ini = fake.date_between(start_date="-5y", end_date="today")
-            desc = fake.text(max_nb_chars=100)
-            dados_canal.append((id_canal, nome_canal, plat, streamer, tipo, data_ini, desc))
-            canais_criados.append((nome_canal, plat, streamer))
-            id_canal += 1
+    for i in range(1, 1001):
+        id_plat = random.choice(plataforma_ids)
+        id_streamer = random.choice(streamer_ids)
+        nome = f"Canal_Oficial_{i}"[:100]
+        tipo = random.choice(["privado", "público", "misto"])
+        data_ini = fake.date_between(start_date="-5y", end_date="today")
+        desc = fake.text(max_nb_chars=100)
+        dados_canal.append((i, id_plat, id_streamer, nome, tipo, data_ini, desc))
 
-    execute_values(
-        cur,
-        "INSERT INTO Canal (id, nome, nro_plataforma, nick_streamer, tipo, data_inicio, descricao) VALUES %s ON CONFLICT DO NOTHING",
-        dados_canal,
-    )
+    execute_values(cur, "INSERT INTO Canal (id, id_plataforma, id_streamer, nome, tipo, data_inicio, descricao) VALUES %s ON CONFLICT DO NOTHING", dados_canal)
+    canal_ids = [c[0] for c in dados_canal]
     print(f"✅ Canais: {len(dados_canal)}")
 
-    # 10. NÍVEIS DE CANAL (1000)
+
+    # 10. PATROCÍNIOS (1000)
+    dados_patrocina = []
+    pares_patrocina = set()
+    while len(dados_patrocina) < 1000:
+        id_emp = random.choice(empresa_ids)
+        id_can = random.choice(canal_ids)
+        if (id_emp, id_can) not in pares_patrocina:
+            pares_patrocina.add((id_emp, id_can))
+            valor = round(random.uniform(1000.0, 50000.0), 2)
+            dados_patrocina.append((id_emp, id_can, valor))
+
+    execute_values(cur, "INSERT INTO Patrocina (id_empresa, id_canal, valor) VALUES %s ON CONFLICT DO NOTHING", dados_patrocina)
+    print(f"✅ Patrocínios: {len(dados_patrocina)}")
+
+
+    # 11. NÍVEL CANAL (1000+)
     dados_nivel = []
-    niveis_criados = []   # lista de (id_nivel_canal, nome_canal, plat, streamer, nivel)
-    id_nivel = 1
-    for idx, canal in enumerate(canais_criados):
-        qtd_niveis = 2 if idx < 500 else 1
+    niveis_criados = []
+    for id_can in canal_ids:
+        qtd_niveis = random.randint(1, 3)
         for nivel in range(1, qtd_niveis + 1):
             valor = round(random.uniform(5.0, 50.0), 2)
-            gif = f"https://cdn.exemplo.com/gif/{canal[0][:10]}_{nivel}.gif"[:255]
-            dados_nivel.append((id_nivel, canal[0], canal[1], canal[2], nivel, valor, gif))
-            niveis_criados.append((id_nivel, canal[0], canal[1], canal[2], nivel))
-            id_nivel += 1
+            gif = f"https://exemplo.com/gif_{id_can}_{nivel}.gif"
+            dados_nivel.append((id_can, nivel, valor, gif))
+            niveis_criados.append((id_can, nivel))
 
-    execute_values(
-        cur,
-        "INSERT INTO NivelCanal (id, nome_canal, nro_plataforma, nick_streamer, nivel, valor_nivel, gif) VALUES %s ON CONFLICT DO NOTHING",
-        dados_nivel,
-    )
+    execute_values(cur, "INSERT INTO NivelCanal (id_canal, nivel, valor_nivel, gif) VALUES %s ON CONFLICT DO NOTHING", dados_nivel)
     print(f"✅ NivelCanal: {len(dados_nivel)}")
 
-    # 11. INSCRIÇÕES (1000)
-    # CORRIGIDO: schema mudou para (id, nick_membro, id_nivel_canal)
-    #            em vez de (nick_membro, nome_canal, nro_plataforma, nick_streamer, nivel)
+
+    # 12. INSCRIÇÕES (1000)
     dados_inscricao = []
     pares_inscricao = set()
-    tentativas = 0
-    id_inscricao = 1
-    while len(dados_inscricao) < 1000 and tentativas < 20000:
-        tentativas += 1
-        membro = random.choice(membros)
-        nivel_info = random.choice(niveis_criados)   # (id_nivel, nome, plat, streamer, nivel)
-        id_nivel_canal = nivel_info[0]
-        par = (membro, id_nivel_canal)
-        if par not in pares_inscricao:
-            pares_inscricao.add(par)
-            dados_inscricao.append((id_inscricao, membro, id_nivel_canal))
-            id_inscricao += 1
+    while len(dados_inscricao) < 1000:
+        id_mem = random.choice(membro_ids)
+        nivel_info = random.choice(niveis_criados) # (id_canal, nivel)
+        id_can = nivel_info[0]
+        nivel = nivel_info[1]
+        
+        if (id_mem, id_can) not in pares_inscricao:
+            pares_inscricao.add((id_mem, id_can))
+            dados_inscricao.append((id_mem, id_can, nivel))
 
-    execute_values(
-        cur,
-        "INSERT INTO Inscricao (id, nick_membro, id_nivel_canal) VALUES %s ON CONFLICT DO NOTHING",
-        dados_inscricao,
-    )
+    execute_values(cur, "INSERT INTO Inscricao (id_membro, id_canal, nivel) VALUES %s ON CONFLICT DO NOTHING", dados_inscricao)
     print(f"✅ Inscrições: {len(dados_inscricao)}")
 
-    # 12. VÍDEOS (1000)
+
+    # 13. VÍDEOS (1000)
     dados_video = []
-    videos_criados = []
-    for i in range(1000):
-        canal = random.choice(canais_criados)
-        titulo = f"Video_{i}_{fake.word()}"[:100]
-        data_hora = datetime.now() - timedelta(
-            days=random.randint(1, 730), minutes=random.randint(1, 1440)
-        )
+    mapa_dono_video = {} # Para saber quem é o streamer dono do vídeo nas participações
+    for i in range(1, 1001):
+        canal_info = random.choice(dados_canal) # (id, id_plataforma, id_streamer, ...)
+        id_can = canal_info[0]
+        id_streamer_dono = canal_info[2]
+        
+        titulo = f"Video_{i}_{fake.word()}"[:150]
+        data_hora = datetime.now() - timedelta(days=random.randint(1, 730), minutes=random.randint(1, 1440))
         duracao = random.randint(60, 14400)
         visu_simul = random.randint(10, 50000)
-        tema = random.choice(["Gaming", "Educação", "Música", "Artes", "Tecnologia"])[:50]
+        tema = random.choice(["Gaming", "Educação", "Música", "Artes", "Tecnologia"])[:100]
         visu_tot = visu_simul * random.randint(2, 20)
-        dados_video.append(
-            (titulo, data_hora, canal[0], canal[1], canal[2], duracao, visu_simul, tema, visu_tot)
-        )
-        videos_criados.append((titulo, data_hora, canal[0], canal[1], canal[2]))
+        
+        dados_video.append((i, id_can, titulo, data_hora, duracao, visu_simul, tema, visu_tot))
+        mapa_dono_video[i] = id_streamer_dono
 
-    execute_values(
-        cur,
-        "INSERT INTO Video (titulo, data_hora, nome_canal, nro_plataforma, nick_streamer, duracao, visu_simulta, tema, visu_total) VALUES %s ON CONFLICT DO NOTHING",
-        dados_video,
-    )
+    execute_values(cur, "INSERT INTO Video (id, id_canal, titulo, data_hora, duracao, visu_simulta, tema, visu_total) VALUES %s ON CONFLICT DO NOTHING", dados_video)
+    video_ids = [v[0] for v in dados_video]
     print(f"✅ Vídeos: {len(dados_video)}")
 
-    # 13. PARTICIPAÇÕES / COLLABS (1000)
+
+    # 14. PARTICIPAÇÕES (1000)
     dados_participa = []
     pares_participa = set()
-    tentativas = 0
-    while len(dados_participa) < 1000 and tentativas < 20000:
-        tentativas += 1
-        video = random.choice(videos_criados)
-        convidado = random.choice(streamers)
-        par = (convidado, video[0], video[1], video[4])
-        if convidado != video[4] and par not in pares_participa:
-            pares_participa.add(par)
-            dados_participa.append(
-                (convidado, video[0], video[1], video[2], video[3], video[4])
-            )
+    while len(dados_participa) < 1000:
+        id_vid = random.choice(video_ids)
+        dono = mapa_dono_video[id_vid]
+        convidado = random.choice(streamer_ids)
+        
+        # O convidado não pode ser o dono do vídeo
+        if convidado != dono and (id_vid, convidado) not in pares_participa:
+            pares_participa.add((id_vid, convidado))
+            dados_participa.append((id_vid, convidado))
 
-    execute_values(
-        cur,
-        "INSERT INTO Participa (nick_streamer_convidado, titulo_video, data_hora_video, nome_canal, nro_plataforma, nick_streamer_dono) VALUES %s ON CONFLICT DO NOTHING",
-        dados_participa,
-    )
+    execute_values(cur, "INSERT INTO Participa (id_video, id_streamer_convidado) VALUES %s ON CONFLICT DO NOTHING", dados_participa)
     print(f"✅ Participações: {len(dados_participa)}")
 
-    # 14. COMENTÁRIOS (1000)
+
+    # 15. COMENTÁRIOS (1000)
     dados_comentario = []
-    comentarios_criados = []
-    seq_por_video: dict = {}
-    for _ in range(1000):
-        video = random.choice(videos_criados)
-        chave_video = (video[0], video[1], video[2], video[3], video[4])
-        seq = seq_por_video.get(chave_video, 0) + 1
-        seq_por_video[chave_video] = seq
-
-        usuario = random.choice(nicks_gerados)
+    for i in range(1, 1001):
+        id_vid = random.choice(video_ids)
+        id_usr = random.choice(usuario_ids)
+        seq = random.randint(1, 99999) # Em seeders, podemos aleatorizar o sequencial
         texto = fake.sentence()[:200]
-        data_hora_coment = video[1] + timedelta(minutes=random.randint(1, 1440))
+        data_hora_coment = datetime.now() - timedelta(minutes=random.randint(1, 1440))
         online = random.choice([True, False])
+        dados_comentario.append((i, id_vid, id_usr, seq, texto, data_hora_coment, online))
 
-        tupla = (
-            seq, usuario,
-            video[0], video[1], video[2], video[3], video[4],
-            texto, data_hora_coment, online,
-        )
-        dados_comentario.append(tupla)
-        comentarios_criados.append(tupla)
-
-    execute_values(
-        cur,
-        """INSERT INTO Comentario
-           (sequencial, nick_usuario, titulo_video, data_hora_video,
-            nome_canal, nro_plataforma, nick_streamer,
-            texto, data_hora, online)
-           VALUES %s ON CONFLICT DO NOTHING""",
-        dados_comentario,
-    )
+    execute_values(cur, "INSERT INTO Comentario (id, id_video, id_usuario, sequencial, texto, data_hora, online) VALUES %s ON CONFLICT DO NOTHING", dados_comentario)
+    comentario_ids = [c[0] for c in dados_comentario]
     print(f"✅ Comentários: {len(dados_comentario)}")
 
-    # 15. DOAÇÕES + PAGAMENTOS (1000 doações — 250 por método)
-    # CORRIGIDO: Doacao agora tem id INT PRIMARY KEY (surrogate key)
-    #            Cartao_Cred, Paypal, BTC, Mec_plat agora referenciam apenas id_doacao
+
+    # 16. DOAÇÕES + PAGAMENTOS (1000)
     dados_doacao = []
     dados_cartao, dados_paypal, dados_btc, dados_mec = [], [], [], []
 
-    amostra = random.sample(comentarios_criados, min(1000, len(comentarios_criados)))
-
-    for i, c in enumerate(amostra, start=1):
-        # c = (seq, nick_usuario, titulo, data_hora_video, nome_canal, nro_plat, nick_streamer, texto, data_hora_coment, online)
+    for i in range(1, 1001):
+        id_coment = comentario_ids[i - 1] # 1 doação por comentário para não dar conflito de Unique
         valor = round(random.uniform(5.0, 500.0), 2)
         status = random.choice(["recusado", "recebido", "lido"])
+        dados_doacao.append((i, id_coment, valor, status))
 
-        dados_doacao.append((
-            i,        # id (PK surrogate)
-            c[0],     # sequencial_coment
-            c[1],     # nick_usuario
-            c[2],     # titulo_video
-            c[3],     # data_hora_video
-            c[4],     # nome_canal
-            c[5],     # nro_plataforma
-            c[6],     # nick_streamer
-            valor,
-            status,
-        ))
-
+        # Distribui os 1000 pagamentos: 250 para cada tipo
         if i <= 250:
             numero = fake.credit_card_number()[:20]
             bandeira = random.choice(["VISA", "MASTERCARD", "ELO"])[:20]
@@ -409,68 +315,17 @@ def popular_banco(cur):
             seq_mec = random.randint(1, 9999)
             dados_mec.append((i, seq_mec))
 
-    execute_values(
-        cur,
-        """INSERT INTO Doacao
-           (id, sequencial_coment, nick_usuario,
-            titulo_video, data_hora_video, nome_canal, nro_plataforma,
-            nick_streamer, valor, status)
-           VALUES %s ON CONFLICT DO NOTHING""",
-        dados_doacao,
-    )
+    execute_values(cur, "INSERT INTO Doacao (id, id_comentario, valor, status) VALUES %s ON CONFLICT DO NOTHING", dados_doacao)
     print(f"✅ Doações: {len(dados_doacao)}")
 
-    # CORRIGIDO: tabelas de pagamento agora só recebem (id_doacao, dado_especifico)
-    execute_values(
-        cur,
-        "INSERT INTO Cartao_Cred (id_doacao, numero, bandeira, data_hora_cartao) VALUES %s ON CONFLICT DO NOTHING",
-        dados_cartao,
-    )
-
-    execute_values(
-        cur,
-        "INSERT INTO Paypal (id_doacao, id_paypal) VALUES %s ON CONFLICT DO NOTHING",
-        dados_paypal,
-    )
-
-    execute_values(
-        cur,
-        "INSERT INTO BTC (id_doacao, tx_id) VALUES %s ON CONFLICT DO NOTHING",
-        dados_btc,
-    )
-
-    execute_values(
-        cur,
-        "INSERT INTO Mec_plat (id_doacao, sequencial_mec) VALUES %s ON CONFLICT DO NOTHING",
-        dados_mec,
-    )
+    execute_values(cur, "INSERT INTO Cartao_Cred (id_doacao, numero, bandeira, data_hora_cartao) VALUES %s ON CONFLICT DO NOTHING", dados_cartao)
+    execute_values(cur, "INSERT INTO Paypal (id_doacao, id_paypal) VALUES %s ON CONFLICT DO NOTHING", dados_paypal)
+    execute_values(cur, "INSERT INTO BTC (id_doacao, tx_id) VALUES %s ON CONFLICT DO NOTHING", dados_btc)
+    execute_values(cur, "INSERT INTO Mec_plat (id_doacao, sequencial_mec) VALUES %s ON CONFLICT DO NOTHING", dados_mec)
     print(f"✅ Pagamentos: 250 Cartão | 250 PayPal | 250 BTC | 250 Mec_plat")
 
-    # 16. PATROCÍNIOS (1000)
-    dados_patrocina = []
-    pares_patrocina = set()
-    tentativas = 0
-    id_patrocina = 1
-    while len(dados_patrocina) < 1000 and tentativas < 20000:
-        tentativas += 1
-        canal = random.choice(canais_criados)
-        empresa = random.choice(lista_empresas)
-        par = (empresa, canal[0], canal[1], canal[2])
-        if par not in pares_patrocina:
-            pares_patrocina.add(par)
-            valor = round(random.uniform(1000.0, 50000.0), 2)
-            dados_patrocina.append((id_patrocina, empresa, canal[0], canal[1], canal[2], valor))
-            id_patrocina += 1
-
-    execute_values(
-        cur,
-        "INSERT INTO Patrocina (id, nro_empresa, nome_canal, nro_plataforma, nick_streamer, valor) VALUES %s ON CONFLICT DO NOTHING",
-        dados_patrocina,
-    )
-    print(f"✅ Patrocínios: {len(dados_patrocina)}")
-
     print("-" * 70)
-    print("🎉 BANCO POPULADO COM SUCESSO!")
+    print("🎉 BANCO POPULADO COM SUCESSO E EM ALTA PERFORMANCE!")
 
 
 # ──────────────────────────────────────────────

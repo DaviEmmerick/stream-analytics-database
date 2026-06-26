@@ -22,4 +22,4 @@ CREATE INDEX idx_usuario_pais ON Usuario(ddi_pais_reside);
 -- Trade-off: Custo médio de escrita. 
 -- Justificativa: Consultas para saber "quais streamers participaram juntos num vídeo" são complexas.
 -- Este índice acelera a recuperação de colaborações na plataforma.
-CREATE INDEX idx_participa_streamer_video ON Participa(nick_streamer_convidado, titulo_video);
+CREATE INDEX idx_participa_streamer_video ON Participa(id_streamer_convidado, id_video);
