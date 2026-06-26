@@ -1,19 +1,21 @@
 
+-- 1. ESTRUTURA CORPORATIVA E PAÍSES
+
 CREATE TABLE Moeda (
-    id INT PRIMARY KEY,                         
+    id SERIAL PRIMARY KEY, 
     nome_moeda VARCHAR(50) UNIQUE NOT NULL,
-    fat_conversao DECIMAL(10, 4) NOT NULL
+    fat_conversao DECIMAL(10, 4) NOT NULL CHECK (fat_conversao > 0)
 );
 
 CREATE TABLE Pais (
-    ddi INT PRIMARY KEY,                         
+    ddi INT PRIMARY KEY, 
     nome VARCHAR(100) NOT NULL,
-    nome_moeda VARCHAR(50) NOT NULL,
-    FOREIGN KEY (nome_moeda) REFERENCES Moeda(nome_moeda)
+    id_moeda INT NOT NULL,
+    FOREIGN KEY (id_moeda) REFERENCES Moeda(id)
 );
 
 CREATE TABLE Empresa (
-    numero INT  NOT NULL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     nome VARCHAR(150) NOT NULL,
     nome_fantasia VARCHAR(150),
     id_nacional VARCHAR(50) UNIQUE NOT NULL,
@@ -24,19 +26,19 @@ CREATE TABLE Empresa (
 -- 2. PLATAFORMAS, USUÁRIOS E ESPECIALIZAÇÕES
 
 CREATE TABLE Plataforma (
-    numero INT PRIMARY KEY,                      
+    id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     qtd_usuarios INT,
     data_fundacao DATE,
-    empresa_funda_nro INT NOT NULL,
-    empresa_resp_nro INT NOT NULL,
-    FOREIGN KEY (empresa_funda_nro) REFERENCES Empresa(numero),
-    FOREIGN KEY (empresa_resp_nro) REFERENCES Empresa(numero)
+    id_empresa_funda INT NOT NULL,
+    id_empresa_resp INT NOT NULL,
+    FOREIGN KEY (id_empresa_funda) REFERENCES Empresa(id),
+    FOREIGN KEY (id_empresa_resp) REFERENCES Empresa(id)
 );
 
 CREATE TABLE Usuario (
-    id INT PRIMARY KEY,                         
-    nick VARCHAR(50) UNIQUE NOT NULL,           
+    id SERIAL PRIMARY KEY,
+    nick VARCHAR(50) UNIQUE NOT NULL, 
     email VARCHAR(150) UNIQUE NOT NULL,
     data_nasc DATE NOT NULL,
     telefone VARCHAR(30),
@@ -46,137 +48,114 @@ CREATE TABLE Usuario (
 );
 
 CREATE TABLE Streamer (
-    id INT PRIMARY KEY,                          
-    nick_streamer VARCHAR(50) UNIQUE NOT NULL,   
+    id_usuario INT PRIMARY KEY, 
     nro_passaporte VARCHAR(50) UNIQUE NOT NULL,
     ddi_pais_nacionalidade INT NOT NULL,
-    FOREIGN KEY (nick_streamer) REFERENCES Usuario(nick) ON DELETE CASCADE,
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id) ON DELETE CASCADE,
     FOREIGN KEY (ddi_pais_nacionalidade) REFERENCES Pais(ddi)
 );
 
-CREATE TABLE Membro (                            
-    id INT PRIMARY KEY,
-    nick_membro VARCHAR(50) UNIQUE NOT NULL,
-    FOREIGN KEY (nick_membro) REFERENCES Usuario(nick) ON DELETE CASCADE
+CREATE TABLE Membro (
+    id_usuario INT PRIMARY KEY,
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id) ON DELETE CASCADE
 );
 
 CREATE TABLE TemConta (
-    id INT PRIMARY KEY,                          
-    nick_usuario VARCHAR(50),
-    nro_plataforma INT,
-    nro_usuario VARCHAR(50) UNIQUE NOT NULL,
-    FOREIGN KEY (nick_usuario) REFERENCES Usuario(nick) ON DELETE CASCADE,
-    FOREIGN KEY (nro_plataforma) REFERENCES Plataforma(numero)
+    id_usuario INT NOT NULL,
+    id_plataforma INT NOT NULL,
+    nro_usuario VARCHAR(50) NOT NULL,
+    PRIMARY KEY (id_usuario, id_plataforma),
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_plataforma) REFERENCES Plataforma(id)
 );
 
 -- 3. CANAIS, MONETIZAÇÃO E INSCRIÇÕES
 
 CREATE TABLE Canal (
-    id INT PRIMARY KEY,                          
-    nome VARCHAR(100),
-    nro_plataforma INT,
-    nick_streamer VARCHAR(50),
-    tipo VARCHAR(50),
+    id SERIAL PRIMARY KEY, 
+    id_plataforma INT NOT NULL,
+    id_streamer INT NOT NULL,
+    nome VARCHAR(100) NOT NULL,
+    tipo VARCHAR(50) CHECK (tipo IN ('privado', 'público', 'misto')),
     data_inicio DATE,
     descricao TEXT,
     qtd_videos INT DEFAULT 0,
-    UNIQUE (nome, nro_plataforma, nick_streamer), 
-    FOREIGN KEY (nro_plataforma) REFERENCES Plataforma(numero),
-    FOREIGN KEY (nick_streamer) REFERENCES Streamer(nick_streamer) ON DELETE CASCADE
+    UNIQUE (nome, id_plataforma), 
+    FOREIGN KEY (id_plataforma) REFERENCES Plataforma(id),
+    FOREIGN KEY (id_streamer) REFERENCES Streamer(id_usuario) ON DELETE CASCADE
 );
 
 CREATE TABLE Patrocina (
-    id INT PRIMARY KEY,                          
-    nro_empresa INT,
-    nome_canal VARCHAR(100),
-    nro_plataforma INT,
-    nick_streamer VARCHAR(50),
-    valor DECIMAL(12, 2) NOT NULL,
-    FOREIGN KEY (nro_empresa) REFERENCES Empresa(numero),
-    FOREIGN KEY (nome_canal, nro_plataforma, nick_streamer) REFERENCES Canal(nome, nro_plataforma, nick_streamer) ON DELETE CASCADE
+    id_empresa INT NOT NULL,
+    id_canal INT NOT NULL,
+    valor DECIMAL(12, 2) NOT NULL CHECK (valor > 0),
+    PRIMARY KEY (id_empresa, id_canal),
+    FOREIGN KEY (id_empresa) REFERENCES Empresa(id),
+    FOREIGN KEY (id_canal) REFERENCES Canal(id) ON DELETE CASCADE
 );
 
 CREATE TABLE NivelCanal (
-    id INT PRIMARY KEY,
-    nome_canal VARCHAR(100),
-    nro_plataforma INT,
-    nick_streamer VARCHAR(50),
-    nivel INT,
-    valor_nivel DECIMAL(10, 2) NOT NULL,
+    id_canal INT NOT NULL,
+    nivel INT CHECK (nivel BETWEEN 1 AND 5),
+    valor_nivel DECIMAL(10, 2) NOT NULL CHECK (valor_nivel > 0),
     gif VARCHAR(255),
-    UNIQUE (nome_canal, nro_plataforma, nick_streamer, nivel),
-    FOREIGN KEY (nome_canal, nro_plataforma, nick_streamer) REFERENCES Canal(nome, nro_plataforma, nick_streamer) ON DELETE CASCADE
+    PRIMARY KEY (id_canal, nivel),
+    FOREIGN KEY (id_canal) REFERENCES Canal(id) ON DELETE CASCADE
 );
 
 CREATE TABLE Inscricao (
-    id INT PRIMARY KEY,
-    nick_membro VARCHAR(50),
-    id_nivel_canal INT NOT NULL,
-    FOREIGN KEY (nick_membro) REFERENCES Membro(nick_membro) ON DELETE CASCADE,
-    FOREIGN KEY (id_nivel_canal) REFERENCES NivelCanal(id)
+    id_membro INT NOT NULL,
+    id_canal INT NOT NULL,
+    nivel INT NOT NULL,
+    PRIMARY KEY (id_membro, id_canal),
+    FOREIGN KEY (id_membro) REFERENCES Membro(id_usuario) ON DELETE CASCADE,
+    FOREIGN KEY (id_canal, nivel) REFERENCES NivelCanal(id_canal, nivel) ON DELETE CASCADE
 );
 
 -- 4. VÍDEOS, PARTICIPAÇÕES E COMENTÁRIOS
 
 CREATE TABLE Video (
-    titulo VARCHAR(150),
-    data_hora TIMESTAMP,
-    nome_canal VARCHAR(100),
-    nro_plataforma INT,
-    nick_streamer VARCHAR(50),
+    id SERIAL PRIMARY KEY,
+    id_canal INT NOT NULL,
+    titulo VARCHAR(150) NOT NULL,
+    data_hora TIMESTAMP NOT NULL,
     duracao INT,
     visu_simulta INT DEFAULT 0,
     tema VARCHAR(100),
     visu_total INT DEFAULT 0,
-    PRIMARY KEY (titulo, data_hora, nome_canal, nro_plataforma, nick_streamer),
-    FOREIGN KEY (nome_canal, nro_plataforma, nick_streamer) REFERENCES Canal(nome, nro_plataforma, nick_streamer) ON DELETE CASCADE
+    UNIQUE (id_canal, titulo, data_hora), 
+    FOREIGN KEY (id_canal) REFERENCES Canal(id) ON DELETE CASCADE
 );
 
 CREATE TABLE Participa (
-    nick_streamer_convidado VARCHAR(50),
-    titulo_video VARCHAR(150),
-    data_hora_video TIMESTAMP,
-    nome_canal VARCHAR(100),
-    nro_plataforma INT,
-    nick_streamer_dono VARCHAR(50),
-    PRIMARY KEY (nick_streamer_convidado, titulo_video, data_hora_video, nome_canal, nro_plataforma, nick_streamer_dono),
-    FOREIGN KEY (nick_streamer_convidado) REFERENCES Streamer(nick_streamer),
-    FOREIGN KEY (titulo_video, data_hora_video, nome_canal, nro_plataforma, nick_streamer_dono)
-        REFERENCES Video(titulo, data_hora, nome_canal, nro_plataforma, nick_streamer) ON DELETE CASCADE
+    id_video INT NOT NULL,
+    id_streamer_convidado INT NOT NULL,
+    PRIMARY KEY (id_video, id_streamer_convidado),
+    FOREIGN KEY (id_video) REFERENCES Video(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_streamer_convidado) REFERENCES Streamer(id_usuario) ON DELETE CASCADE
 );
 
 CREATE TABLE Comentario (
-    sequencial INT,
-    nick_usuario VARCHAR(50),
-    titulo_video VARCHAR(150),
-    data_hora_video TIMESTAMP,
-    nome_canal VARCHAR(100),
-    nro_plataforma INT,
-    nick_streamer VARCHAR(50),
+    id SERIAL PRIMARY KEY,
+    id_video INT NOT NULL,
+    id_usuario INT NOT NULL,
+    sequencial INT NOT NULL,
     texto TEXT NOT NULL,
     data_hora TIMESTAMP NOT NULL,
     online BOOLEAN DEFAULT TRUE,
-    PRIMARY KEY (sequencial, nick_usuario, titulo_video, data_hora_video, nome_canal, nro_plataforma, nick_streamer),
-    FOREIGN KEY (nick_usuario) REFERENCES Usuario(nick),
-    FOREIGN KEY (titulo_video, data_hora_video, nome_canal, nro_plataforma, nick_streamer)
-        REFERENCES Video(titulo, data_hora, nome_canal, nro_plataforma, nick_streamer) ON DELETE CASCADE
+    UNIQUE (id_video, sequencial), 
+    FOREIGN KEY (id_video) REFERENCES Video(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id) ON DELETE CASCADE
 );
 
 -- 5. DOAÇÕES E ESPECIFICAÇÕES DE PAGAMENTO
 
 CREATE TABLE Doacao (
-    id INT PRIMARY KEY,                          
-    sequencial_coment INT NOT NULL,
-    nick_usuario VARCHAR(50) NOT NULL,
-    titulo_video VARCHAR(150) NOT NULL,
-    data_hora_video TIMESTAMP NOT NULL,
-    nome_canal VARCHAR(100) NOT NULL,
-    nro_plataforma INT NOT NULL,
-    nick_streamer VARCHAR(50) NOT NULL,
-    valor DECIMAL(10, 2) NOT NULL,
+    id SERIAL PRIMARY KEY,
+    id_comentario INT UNIQUE NOT NULL, 
+    valor DECIMAL(10, 2) NOT NULL CHECK (valor > 0),
     status VARCHAR(50) CHECK (status IN ('recusado', 'recebido', 'lido')),
-    FOREIGN KEY (sequencial_coment, nick_usuario, titulo_video, data_hora_video, nome_canal, nro_plataforma, nick_streamer)
-        REFERENCES Comentario(sequencial, nick_usuario, titulo_video, data_hora_video, nome_canal, nro_plataforma, nick_streamer) ON DELETE CASCADE
+    FOREIGN KEY (id_comentario) REFERENCES Comentario(id) ON DELETE CASCADE
 );
 
 CREATE TABLE Cartao_Cred (
