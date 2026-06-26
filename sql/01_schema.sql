@@ -21,7 +21,6 @@ CREATE TABLE Empresa (
     FOREIGN KEY (ddi_pais_sede) REFERENCES Pais(ddi)
 );
 
--- =============================================================
 -- 2. PLATAFORMAS, USUÁRIOS E ESPECIALIZAÇÕES
 
 CREATE TABLE Plataforma (
@@ -70,7 +69,6 @@ CREATE TABLE TemConta (
     FOREIGN KEY (nro_plataforma) REFERENCES Plataforma(numero)
 );
 
--- =============================================================
 -- 3. CANAIS, MONETIZAÇÃO E INSCRIÇÕES
 
 CREATE TABLE Canal (
@@ -118,7 +116,6 @@ CREATE TABLE Inscricao (
     FOREIGN KEY (id_nivel_canal) REFERENCES NivelCanal(id)
 );
 
--- =============================================================
 -- 4. VÍDEOS, PARTICIPAÇÕES E COMENTÁRIOS
 
 CREATE TABLE Video (
@@ -165,7 +162,6 @@ CREATE TABLE Comentario (
         REFERENCES Video(titulo, data_hora, nome_canal, nro_plataforma, nick_streamer) ON DELETE CASCADE
 );
 
--- =============================================================
 -- 5. DOAÇÕES E ESPECIFICAÇÕES DE PAGAMENTO
 
 CREATE TABLE Doacao (

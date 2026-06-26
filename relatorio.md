@@ -1,0 +1,5 @@
+# Relatório - Decisões de Projeto
+
+O presente projeto de banco de dados foi estruturado com foco primordial em alta performance, escalabilidade e integridade referencial. A principal decisão arquitetônica do Modelo Lógico foi a adoção sistemática de identificadores artificiais numéricos (id SERIAL) para as entidades do sistema, especialmente nas de maior volume transacional, como vídeos, comentários e doações. Essa estratégia substitui a propagação de chaves primárias naturais e compostas pesadas, reduzindo drasticamente o inchaço dos índices em disco e otimizando o custo computacional (CPU e RAM) das operações de junção (JOINs).
+
+Para garantir que essa otimização técnica não comprometesse a consistência das regras de negócio, as identidades reais dos registros (como nomes de canais, nicks e sequenciais) foram rigorosamente isoladas e protegidas através de chaves alternativas (Unique Keys).
