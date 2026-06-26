@@ -55,10 +55,10 @@ def popular_banco(cur):
     print("-" * 70)
 
     # 1. MOEDAS (1000)
- dados_moeda = []
+    dados_moeda = []
     moedas_geradas = set()
     tentativas = 0
-    id_moeda = 1  # <-- CRIADO O CONTADOR DE ID
+    id_moeda = 1  
     
     while len(dados_moeda) < 1000 and tentativas < 5000:
         tentativas += 1
