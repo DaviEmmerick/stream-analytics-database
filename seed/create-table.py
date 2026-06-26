@@ -55,23 +55,28 @@ def popular_banco(cur):
     print("-" * 70)
 
     # 1. MOEDAS (1000)
-    dados_moeda = []
+ dados_moeda = []
     moedas_geradas = set()
     tentativas = 0
+    id_moeda = 1  # <-- CRIADO O CONTADOR DE ID
+    
     while len(dados_moeda) < 1000 and tentativas < 5000:
         tentativas += 1
         codigo = fake.currency_code()
+        
         if codigo in moedas_geradas:
             codigo = f"{codigo[:2]}{random.randint(10, 99)}"
+            
         if codigo not in moedas_geradas and len(codigo) <= 10:
             moedas_geradas.add(codigo)
             taxa = round(random.uniform(0.01, 10.0), 4)
-            dados_moeda.append((codigo, taxa))
+            dados_moeda.append((id_moeda, codigo, taxa))
+            id_moeda += 1
 
     execute_values(
         cur,
-        "INSERT INTO Moeda (nome_moeda, fat_conversao) VALUES %s ON CONFLICT DO NOTHING",
-        dados_moeda,
+    "INSERT INTO Moeda (id, nome_moeda, fat_conversao) VALUES %s ON CONFLICT DO NOTHING",
+    dados_moeda,
     )
     lista_moedas = list(moedas_geradas)
     print(f"✅ Moedas: {len(dados_moeda)}")
