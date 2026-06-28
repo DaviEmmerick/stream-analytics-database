@@ -4,6 +4,31 @@ Sistema de Banco de Dados Relacional projetado para catalogar e analisar o ecoss
 
 ---
 
+## Como Executar o Projeto
+
+Pré-requisitos:
+
+->Antes de começar, certifique-se de ter instalado em sua máquina:
+-> Docker e Docker Compose
+
+### Passo a Passo
+
+1. Configurar as Variáveis de Ambiente
+
+Copie o arquivo .env:
+
+Certifique-se de que as variáveis POSTGRES_USER, POSTGRES_PASSWORD e POSTGRES_DB estejam preenchidas no seu .env.
+
+2. Subir os Contêineres
+
+docker compose up -d
+
+3. Verificar o Status da Execução
+
+docker logs -f streamer_seeder
+
+---
+
 ## Sobre o Projeto
 
 Este repositório contém a modelagem Conceitual, Lógica e Física, além da implementação completa de uma base de dados normalizada para gerenciar informações de transmissões ao vivo. 
