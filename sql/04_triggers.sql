@@ -86,10 +86,10 @@ DECLARE
 BEGIN
     -- Soma quantas vezes esse id_doacao aparece nas 4 tabelas de pagamento
     SELECT (
-        (SELECT COUNT() FROM Cartao_Cred WHERE id_doacao = NEW.id_doacao) +
-        (SELECT COUNT() FROM Paypal WHERE id_doacao = NEW.id_doacao) +
-        (SELECT COUNT() FROM BTC WHERE id_doacao = NEW.id_doacao) +
-        (SELECT COUNT() FROM Mec_plat WHERE id_doacao = NEW.id_doacao)
+        (SELECT COUNT(*) FROM Cartao_Cred WHERE id_doacao = NEW.id_doacao) +
+        (SELECT COUNT(*) FROM Paypal WHERE id_doacao = NEW.id_doacao) +
+        (SELECT COUNT(*) FROM BTC WHERE id_doacao = NEW.id_doacao) +
+        (SELECT COUNT(*) FROM Mec_plat WHERE id_doacao = NEW.id_doacao)
     
     ) INTO qtd_encontrada;
 
