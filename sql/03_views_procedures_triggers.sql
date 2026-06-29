@@ -166,12 +166,6 @@ LEFT JOIN receita_membros    rm ON rm.id_canal = c.id
 LEFT JOIN receita_doacoes    rd ON rd.id_canal = c.id
 WITH DATA;
 
--- Índices na MV para ORDER BY sem sort em memória (queries 5–8)
-CREATE INDEX idx_mv_patrocinio  ON mv_receita_canal (total_patrocinio  DESC);
-CREATE INDEX idx_mv_membros     ON mv_receita_canal (total_membros      DESC);
-CREATE INDEX idx_mv_doacoes     ON mv_receita_canal (total_doacoes      DESC);
-CREATE INDEX idx_mv_faturamento ON mv_receita_canal (total_faturamento  DESC);
-
 
 CREATE OR REPLACE FUNCTION fn_auto_sequencial_comentario()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
