@@ -28,7 +28,7 @@ services:
     container_name: streamer_seeder
     depends_on:
       postgres:
-        condition: service_healthy   # <-- só sobe quando o healthcheck passar
+        condition: service_healthy   
     env_file:
       - .env
     environment:
