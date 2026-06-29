@@ -178,12 +178,13 @@ RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
     v_proximo INT;
 BEGIN
-    -- Bloqueia linhas do mesmo vídeo para evitar race condition
+    -- Lock advisory por vídeo: evita race condition sem bloquear a tabela inteira
+    PERFORM pg_advisory_xact_lock(NEW.id_video::BIGINT);
+
     SELECT COALESCE(MAX(sequencial), 0) + 1
       INTO v_proximo
       FROM Comentario
-     WHERE id_video = NEW.id_video
-       FOR UPDATE;
+     WHERE id_video = NEW.id_video;
 
     NEW.sequencial := v_proximo;
     RETURN NEW;
