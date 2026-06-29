@@ -1,25 +1,16 @@
--- 1. ÍNDICE POR TEMA DE VÍDEO (B-TREE)
--- Trade-off: Aumenta o custo de inserção de novos vídeos, mas acelera brutalmente 
--- a filtragem de buscas na plataforma (Ex: "Mostrar todos os vídeos de RPG").
-CREATE INDEX idx_video_tema ON Video(tema);
+CREATE INDEX idx_patrocina_canal
+    ON Patrocina (id_canal) INCLUDE (valor);
 
--- 2. ÍNDICE POR VALOR DE DOAÇÃO (B-TREE)
--- Trade-off: Doações ocorrem com alta frequência em lives, o que gera overhead de escrita.
--- Porém, é essencial para gerar o ranking em tempo real dos "Maiores Apoiadores" (Top Donators).
-CREATE INDEX idx_doacao_valor ON Doacao(valor DESC);
+CREATE INDEX idx_nivelcanal_valor
+    ON NivelCanal (id_canal, nivel) INCLUDE (valor_nivel);
 
--- 3. ÍNDICE POR DATA DE COMENTÁRIO (B-TREE)
--- Trade-off: Comentários são a entidade com maior volume de INSERTS (overhead alto).
--- Contudo, sem este índice, carregar o chat de um vídeo por ordem cronológica exigiria um Full Table Scan.
-CREATE INDEX idx_comentario_data ON Comentario(data_hora);
+CREATE INDEX idx_video_canal
+    ON Video (id_canal) INCLUDE (id);
 
--- 4. ÍNDICE POR PAÍS DE RESIDÊNCIA DO USUÁRIO (HASH)
--- Trade-off: Baixo impacto em updates (usuários raramente mudam de país).
--- Excelente benefício de leitura para cruzar métricas demográficas de público.
-CREATE INDEX idx_usuario_pais ON Usuario(ddi_pais_reside);
+CREATE INDEX idx_comentario_video
+    ON Comentario (id_video) INCLUDE (id);
 
--- 5. ÍNDICE COMPOSTO DE PARTICIPAÇÕES (B-TREE)
--- Trade-off: Custo médio de escrita. 
--- Justificativa: Consultas para saber "quais streamers participaram juntos num vídeo" são complexas.
--- Este índice acelera a recuperação de colaborações na plataforma.
-CREATE INDEX idx_participa_streamer_video ON Participa(id_streamer_convidado, id_video);
+
+CREATE INDEX idx_inscricao_membro_canal_nivel
+    ON Inscricao (id_membro, id_canal, nivel);
+
